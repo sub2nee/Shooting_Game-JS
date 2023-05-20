@@ -7,6 +7,7 @@ canvas.width = 500;
 canvas.height = 750;
 document.body.appendChild(canvas);
 
+const backgroundMusic = new Audio('sounds/SpaceTheme.mp3');
 const gameOverSound = new Audio('sounds/GameOver.ogg');
 const laserSounds = ['sounds/sfx_laser1.ogg', 'sounds/sfx_laser2.ogg'];
 
@@ -171,6 +172,8 @@ function reGame() {
     bulletList = []; // 총알 리스트 초기화
     enemyList = []; // 적군 리스트 초기화
     score = 0;
+    backgroundMusic.currentTime = 0; // 음악을 처음으로 되감음
+    backgroundMusic.play();
 
     // 게임 루프 다시 시작
     main();
@@ -230,9 +233,11 @@ function main() {
     if (gameOver) {
         ctx.drawImage(gameOverImg, x - 200, y - 190, 400, 280);
         ctx.fillText('Press Enter to begin', x - 170, y + 200);
+        backgroundMusic.pause(); // 배경 음악 일시 정지
         gameOverSound.play(); // 게임 오버 사운드 출력
         setupKeyboardListener();
     } else {
+        backgroundMusic.play();
         update(); // 좌표값을 업데이트하고
         render(); // 다시 그리기
         requestAnimationFrame(main);
