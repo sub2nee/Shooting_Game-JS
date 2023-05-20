@@ -1,33 +1,27 @@
 //캔버스 세팅
 let canvas;
 let ctx;
-const font = new FontFace('kenvector_future', 'url(font/kenvector_future.ttf)');
-const gameOverSound = new Audio('sounds/sfx_lose.ogg');
+canvas = document.createElement('canvas');
+ctx = canvas.getContext('2d');
+canvas.width = 500;
+canvas.height = 750;
+document.body.appendChild(canvas);
+
+const gameOverSound = new Audio('sounds/GameOver.ogg');
 const laserSounds = ['sounds/sfx_laser1.ogg', 'sounds/sfx_laser2.ogg'];
 
+const font = new FontFace('kenvector_future', 'url(font/kenvector_future.ttf)');
 font.load().then(() => {
     document.fonts.add(font);
     ctx.font = 'bold 24px kenvector_future';
+    ctx.fillStyle = 'white';
 });
-
 const playRandomLaserSound = () => {
     const index = Math.floor(Math.random() * laserSounds.length);
     const audio = new Audio(laserSounds[index]);
     audio.play();
 };
-
-canvas = document.createElement('canvas');
-ctx = canvas.getContext('2d');
-canvas.width = 1000;
-canvas.height = 700;
-document.body.appendChild(canvas);
-
-let bgImg,
-    scoreImg,
-    gameOverImg,
-    playerShipImg,
-    enemyImg,
-    bulletImg;
+/***********************************************************************************/
 
 let gameOver = false; //true 이면 게임 끝, false 이면 게임진행
 let score = 0;
@@ -39,16 +33,36 @@ const y = canvas.height / 2;
 const playerShipWidth = 112;
 const playerShipHeight = 75;
 
-//player 좌표
+//플레이어 좌표
 let playerShipX = x - playerShipWidth / 2;
 let playerShipY = canvas.height - playerShipHeight;
+
+let bgImg, gameOverImg, playerShipImg, bulletImg, enemyImgs;
+
+function loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    return img;
+}
+
+function loadImages() {
+    bgImg = loadImage('images/background.jpg');
+    gameOverImg = loadImage('images/gameOver.png');
+    playerShipImg = loadImage('images/playerShip.png');
+    bulletImg = loadImage('images/bullet.png');
+    enemyImgs = [
+        loadImage('images/enemy/enemy1.png'),
+        loadImage('images/enemy/enemy2.png'),
+        loadImage('images/enemy/enemy3.png'),
+    ];
+}
 
 let bulletList = []; //총알들을 저장하는 리스트
 function Bullet() {
     this.x = 0;
     this.y = 0;
     this.init = function () {
-        this.x = playerShipX + 50;
+        this.x = playerShipX + 25;
         this.y = playerShipY;
         this.alive = true; //true면 살아있는총알, false면 없어진 총알
         bulletList.push(this);
@@ -61,10 +75,12 @@ function Bullet() {
             if (
                 this.y <= enemyList[i].y &&
                 this.x >= enemyList[i].x &&
-                this.x <= enemyList[i].x + 84
+                this.x <= enemyList[i].x + 122
             ) {
-                //총알과 적군 없어지고 점수 획득하기
-                score++;
+                if (this.y >= 0) {
+                    // 총알이 캔버스 내부에 있을 때만 점수 획득
+                    score += 100;
+                }
                 this.alive = false; //없어진총알
                 enemyList.splice(i, 1);
                 // 적군과 충돌한 총알도 삭제하기
@@ -74,9 +90,8 @@ function Bullet() {
     };
 }
 
-function generateRandomValue(min, max) {
+function randomEnemy(min, max) {
     let randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
-
     return randomNum;
 }
 
@@ -85,25 +100,27 @@ function Enemy() {
     this.x = 0;
     this.y = 0;
     this.img = null;
+
     this.init = function () {
         this.y = 0;
-        this.x = generateRandomValue(0, canvas.width - 84); //enemyShipHeight = 84
-        const randomImg = generateRandomValue(1, 3);
+        this.x = randomEnemy(0, canvas.width - 112);
+        const randomImg = randomEnemy(1, 3);
         if (randomImg === 1) {
-            this.img = enemyImg1;
+            this.img = enemyImgs[0];
         } else if (randomImg === 2) {
-            this.img = enemyImg2;
+            this.img = enemyImgs[1];
         } else {
-            this.img = enemyImg3;
+            this.img = enemyImgs[2];
         }
         enemyList.push(this);
     };
+
     this.update = function () {
         this.y += 3; //적군의 속도 조절
 
         if (
-            this.y >= canvas.height - 84 ||
-            (this.y >= playerShipY - 84 &&
+            this.y >= canvas.height - 122 ||
+            (this.y >= playerShipY - 112 &&
                 this.x >= playerShipX &&
                 this.x <= playerShipX + playerShipWidth)
         ) {
@@ -113,39 +130,20 @@ function Enemy() {
     };
 }
 
-function loadImage() {
-    bgImg = new Image();
-    bgImg.src = 'images/background.png';
-
-    scoreImg = new Image();
-    scoreImg.src = 'images/score.png';
-
-    gameOverImg = new Image();
-    gameOverImg.src = 'images/gameOver.png';
-
-    playerShipImg = new Image();
-    playerShipImg.src = 'images/playerShip.png';
-
-    enemyImg1 = new Image();
-    enemyImg1.src = 'images/enemy/enemy1.png';
-    enemyImg2 = new Image();
-    enemyImg2.src = 'images/enemy/enemy2.png';
-    enemyImg3 = new Image();
-    enemyImg3.src = 'images/enemy/enemy3.png';
-
-    bulletImg = new Image();
-    bulletImg.src = 'images/bullet.png';
-}
-
 let keysDown = {};
 function setupKeyboardListener() {
     document.addEventListener('keydown', function (event) {
         keysDown[event.keyCode] = true;
-      });
+        if (event.keyCode == 13 && gameOver) {
+            //Enter
+            reGame(); //게임다시시작
+        }
+    });
     document.addEventListener('keyup', function (event) {
         delete keysDown[event.keyCode];
 
         if (event.keyCode == 32) {
+            //space
             createBullet(); //총알생성
         }
     });
@@ -156,12 +154,26 @@ function createBullet() {
     b.init();
     playRandomLaserSound();
 }
+
 function createEnemy() {
     // const interval = setInterval(호출하고싶은함수,시간[단위:ms = 1s(1000ms] ))
     const interval = setInterval(function () {
         let e = new Enemy();
         e.init();
     }, 1000);
+}
+
+function reGame() {
+    // 게임 초기화 및 리셋 작업 수행
+    gameOver = false; // 게임 오버 상태 초기화
+    playerShipX = x - playerShipWidth / 2;
+    playerShipY = canvas.height - playerShipHeight; //플레이어 위치 초기화
+    bulletList = []; // 총알 리스트 초기화
+    enemyList = []; // 적군 리스트 초기화
+    score = 0;
+
+    // 게임 루프 다시 시작
+    main();
 }
 
 function update() {
@@ -194,45 +206,40 @@ function update() {
 
     enemyList.forEach((enemy) => enemy.update());
 }
+
 // 이미지보여주기
 // ctx.drawImage(image, dx, dy, dWidth, sHeight);
 function render() {
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height); //배경이미지
-        ctx.drawImage(playerShipImg, playerShipX, playerShipY); //플레이어이미지
-        ctx.drawImage(scoreImg, 20, 20, 54, 37); //점수이미지
-        ctx.fillText(`: ${score}`, 90, 50); //점수
-        ctx.fillStyle = 'white';
-    
-        for (let i = 0; i < bulletList.length; i++) {
-            if (bulletList[i].alive) {
-                ctx.drawImage(bulletImg, bulletList[i].x, bulletList[i].y);
-            } //살아있는 총알이미지만 보여주기
-        }
-    
-        for (let i = 0; i < enemyList.length; i++) {
-            ctx.drawImage(enemyList[i].img, enemyList[i].x, enemyList[i].y);
-        } //적군이미지
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height); //배경이미지
+    ctx.drawImage(playerShipImg, playerShipX, playerShipY); //플레이어이미지
+    ctx.fillText(`score : ${score}`, 20, 45); //점수
+    ctx.fillStyle = 'white';
+
+    for (let i = 0; i < bulletList.length; i++) {
+        if (bulletList[i].alive) {
+            ctx.drawImage(bulletImg, bulletList[i].x, bulletList[i].y);
+        } //살아있는 총알이미지만 보여주기
+    }
+
+    for (let i = 0; i < enemyList.length; i++) {
+        ctx.drawImage(enemyList[i].img, enemyList[i].x, enemyList[i].y);
+    } //적군이미지
 }
 
 function main() {
-    if (!gameOver) {
-        update(); //좌표값을 업데이트하고
-        render(); //다시 그리기
-        requestAnimationFrame(main);
-    } else {
-        ctx.drawImage(gameOverImg, x - 250, y - 230, 500, 380);
-        ctx.fillText(
-            'Press Space bar or click Mouse once to begin',
-            x - 355,
-            y + 202
-        );
-        ctx.fillStyle = 'white';
+    if (gameOver) {
+        ctx.drawImage(gameOverImg, x - 200, y - 190, 400, 280);
+        ctx.fillText('Press Enter to begin', x - 170, y + 200);
         gameOverSound.play(); // 게임 오버 사운드 출력
         setupKeyboardListener();
+    } else {
+        update(); // 좌표값을 업데이트하고
+        render(); // 다시 그리기
+        requestAnimationFrame(main);
     }
 }
 
-loadImage();
+loadImages();
 setupKeyboardListener();
 createEnemy();
 main();
@@ -270,3 +277,11 @@ playerShip이 왼쪽으로 간다 -> x좌표의 값이 감소한다.
 3. 점수 획득
 */
 
+/*
+게임 다시시작
+1. 엔터를 누르면 다시 시작한다
+2. 플레이어 위치를 원래대로 초기화
+3. 적군과 총알의 리스트 초기화
+4. 점수 또한 초기화시켜준다
+5. 배경음악을 다시 재시작
+*/
